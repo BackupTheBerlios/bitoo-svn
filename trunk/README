@@ -1,0 +1,22 @@
+HowTo Run BiToo
+
+0)Dependencies
+
+put in your CLASSPATH:
+
+Azureus2.jar, from Azureus-2.2.0.0 ( http://azureus.sf.net/ )
+log4j-1.2.9.jar, from ( http://logging.apache.org/log4j/docs/ )
+commons-cli-1.0.jar, from ( http://jakarta.apache.org/commons/cli/ )
+
+1)Build from source
+
+Require ant from ( http://ant.apache.org/ )
+
+To build run ant in this same directory, jar will be put in dist/lib/ directory
+
+2)Run
+
+Configure the properties file etc/bitoo.properties
+
+Choose a client adapter, for now AzureusWebUI ( http://azureus.sourceforge.net/plugin_details.php?plugin=webui )
+and original BitTorrent ( http://bittorrent.com/ ) are supported.
