@@ -32,4 +32,6 @@ public interface ClientAdapter {
 	public InetAddress getAddress();
 	
 	public int getPort();
+	
+	public void destroy();
 }

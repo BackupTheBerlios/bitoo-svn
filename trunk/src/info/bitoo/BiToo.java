@@ -70,6 +70,12 @@ public class BiToo implements Runnable {
 	
 	private boolean completed = false;
 	
+	private TrackerProxy trackerProxy;
+
+	private BiTooListener listener;
+
+	private String torrentName;
+	
 	public BiToo() {
 
 	}
@@ -277,6 +283,7 @@ public class BiToo implements Runnable {
 	 * @throws MalformedURLException
 	 */
 	public void setTorrent(String torrentName) throws MalformedURLException {
+		this.torrentName = torrentName;
 		torrentURL = new URL(remoteTorrentBaseURL + torrentName);
 	}
 
@@ -287,16 +294,18 @@ public class BiToo implements Runnable {
 	public void setTorrent(URL torrentURL) {
 		this.torrentURL = torrentURL;
 	}
-
+	
 
 	public void run() {
 		if(props == null) {
 			logger.fatal("BiToo not inited. Exit");
+			notifyListener();
 			return;
 		}
 		
 		if(torrentURL == null) {
 			logger.fatal("No torrent URL set, nothing to do. Exit");
+			notifyListener();
 			return;
 		}
 		
@@ -309,6 +318,7 @@ public class BiToo implements Runnable {
 			torrentMap = torrentFetcher.getTorrent();
 		} catch (IOException e) {
 			logger.fatal("Unable to fetch the torrent. Exit", e);
+			notifyListener();
 			return;
 		}
 		
@@ -335,6 +345,7 @@ public class BiToo implements Runnable {
 			torrentInfoBytes = BEncoder.encode(torrentInfoMap);
 		} catch (IOException e1) {
 			logger.fatal("Unable to BEncode modified torrent. Exit", e1);
+			notifyListener();
 			return;
 		}
 		
@@ -343,6 +354,7 @@ public class BiToo implements Runnable {
 			md = MessageDigest.getInstance("SHA1");
 		} catch (NoSuchAlgorithmException e2) {
 			logger.fatal("Unable to calculate SHA1 of the torrent's info. Exit", e2);
+			notifyListener();
 			return;
 		}
 		byte[] torrentHashBytes = md.digest(torrentInfoBytes);
@@ -356,16 +368,23 @@ public class BiToo implements Runnable {
 
 		String remoteTrackerBaseURL = trackerAnnounceURL.substring(0, idx);
 
-		TrackerProxy tp = new TrackerProxy(remoteTrackerBaseURL, peerId,
-				localPeerAddress, localPeerPort);
+		try {
+			trackerProxy = new TrackerProxy(remoteTrackerBaseURL, peerId,
+					localPeerAddress, localPeerPort);
+		} catch (IOException e8) {
+			logger.fatal("Error creating new tracker proxy. Aborting", e8);
+			notifyListener();
+			return;
+		}
 
-		tp.start();
+		trackerProxy.start();
 
 		File updatedTorrentFile = null;
 		try {
-			updatedTorrentFile = updateTorrent(torrentMap, torrentURL, tp.getLocalTrackerPort());
+			updatedTorrentFile = updateTorrent(torrentMap, torrentURL, trackerProxy.getLocalTrackerPort());
 		} catch (IOException e3) {
 			logger.fatal("Unable to update torrent. Exit", e3);
+			notifyListener();
 			return;
 		}
 
@@ -374,6 +393,7 @@ public class BiToo implements Runnable {
 				boolean launched = clientAdapter.launch(updatedTorrentFile);
 			} catch (ClientAdapterException e4) {
 				logger.fatal("Unable to launch real BitTorrent client", e4);
+				notifyListener();
 				return;
 			}
 
@@ -420,6 +440,7 @@ public class BiToo implements Runnable {
 						Thread.sleep(5 * 1000);
 					} catch (InterruptedException e5) {
 						logger.error("BiToo main process sleep interrupt. Exit", e5);
+						notifyListener();
 						return;
 					}
 				} else {
@@ -428,11 +449,57 @@ public class BiToo implements Runnable {
 				}
 			}
 			logger.info((completed) ? "Seed completed" : "Seed failed");
+			notifyListener();
 		}
 		
 	}	
 	
+	/**
+	 * 
+	 */
+	private void notifyListener() {
+		if(listener != null) {
+			if(isCompleted()) {
+				listener.downloadCompleted(this);
+			}
+			else {
+				listener.downloadFailed(this);
+			}
+		}
+	}
+
+
 	public boolean isCompleted() {
 		return completed;
+	}
+
+
+	/**
+	 * 
+	 */
+	public void destroy() {
+		if(trackerProxy != null) {
+			try {
+				trackerProxy.terminate();
+			} catch (IOException e) {
+				logger.warn("Error while terminating tracker proxy", e);
+			}
+		}
+		
+		if(clientAdapter != null) {
+			clientAdapter.destroy();
+		}
+	}
+	
+	public void setListener(BiTooListener listener) {
+		this.listener = listener;
+	}
+	
+	public String toString() {
+		if(torrentName != null) {
+			return torrentName;
+		}
+		
+		return torrentURL.toString();
 	}
 }

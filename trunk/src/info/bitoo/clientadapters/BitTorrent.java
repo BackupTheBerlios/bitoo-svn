@@ -44,6 +44,8 @@ public class BitTorrent implements ClientAdapter {
 	
 	private File logFile;
 
+	private Process process;
+	
 	public void init(Properties props) throws ClientAdapterException {
 		command = props.getProperty("bitTorrentClientCommand");
 		logger.info("BitTorrent client command is: [" + command + "]");
@@ -92,7 +94,6 @@ public class BitTorrent implements ClientAdapter {
 		
 	//	FileOutputStream outputStream = new FileOutputStream(logFile);
 		
-		Process process =null;
 		try {
 			process = Runtime.getRuntime().exec(command);
 		} catch (IOException e1) {
@@ -150,6 +151,11 @@ public class BitTorrent implements ClientAdapter {
 
 	public int getPort() {
 		return port;
+	}
+
+	public void destroy() {
+		// we simply kill the bittorrent process
+		process.destroy();
 	}
 
 

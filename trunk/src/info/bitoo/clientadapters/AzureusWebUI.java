@@ -189,4 +189,10 @@ public class AzureusWebUI implements ClientAdapter {
 		return port;
 	}
 
+
+	public void destroy() {
+		//DO nothing for now, in future we can remove torrent from azureus download list
+		
+	}
+
 }

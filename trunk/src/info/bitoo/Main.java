@@ -1,8 +1,20 @@
 /*
- * Created on 28-nov-2004
+ * Copyright (c) 2004 Fabio Di Fabio
+ * All rights reserved.
+ * 
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
  *
- * TODO To change the template for this generated file go to
- * Window - Preferences - Java - Code Style - Code Templates
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc., 675
+ * Mass Ave, Cambridge, MA 02139, USA.
  */
 package info.bitoo;
 
@@ -25,15 +37,9 @@ import org.apache.commons.cli.PosixParser;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
-/**
- * @author abel
- * 
- * TODO To change the template for this generated type comment go to Window -
- * Preferences - Java - Code Style - Code Templates
- */
 public final class Main {
-	private final static Logger logger = Logger
-	.getLogger(Main.class.getName());
+	private final static Logger logger = Logger.getLogger(Main.class.getName());
+
 	public static final String defaultConfigFilename = "bitoo.properties";
 
 	public static void main(String[] args) throws InterruptedException,
@@ -46,6 +52,44 @@ public final class Main {
 			System.err.println("Parsing failed.  Reason: " + e.getMessage());
 		}
 
+		Properties props = readConfiguration(cmd);
+		BiToo biToo = new BiToo(props);
+
+		URL torrentURL = null;
+
+		if (cmd.hasOption("f")) {
+			String parmValue = cmd.getOptionValue("f");
+			String torrentName = parmValue + ".torrent";
+			biToo.setTorrent(torrentName);
+		} else if (cmd.hasOption("t")) {
+			torrentURL = new URL(cmd.getOptionValue("t"));
+			biToo.setTorrent(torrentURL);
+		} else {
+			return;
+		}
+
+		try {
+			Thread main = new Thread(biToo);
+			main.setName("BiToo");
+			main.start();
+
+			//wait until thread complete
+			main.join();
+		} finally {
+			biToo.destroy();
+		}
+
+		if (biToo.isCompleted()) {
+			System.out.println("Download completed");
+			System.exit(0);
+		} else {
+			System.out.println("Download failed");
+			System.exit(1);
+		}
+
+	}
+
+	static Properties readConfiguration(CommandLine cmd) {
 		/*
 		 * Read configuration file
 		 */
@@ -62,38 +106,17 @@ public final class Main {
 			PropertyConfigurator.configure(props);
 			logger.debug("Log4j initialized");
 		} catch (FileNotFoundException e) {
-			System.out.println("Configuration file not found: [" + configFilename
-					+ "]");
+			System.out.println("Configuration file not found: ["
+					+ configFilename + "]");
 			e.printStackTrace();
 		} catch (IOException e) {
-			System.out.println("Bad configuration file: [" + configFilename + "]");
+			System.out.println("Bad configuration file: [" + configFilename
+					+ "]");
 			e.printStackTrace();
-		}		
-		
-		BiToo biToo = new BiToo(props);
-		
-		URL torrentURL = null;
-
-		if (cmd.hasOption("f")) {
-			String parmValue = cmd.getOptionValue("f");
-			String torrentName = parmValue + ".torrent";
-			biToo.setTorrent(torrentName);
-		} else if (cmd.hasOption("t")) {
-			torrentURL = new URL(cmd.getOptionValue("t"));
-			biToo.setTorrent(torrentURL);
-		} else {
-			return;
 		}
-
-		Thread main = new Thread(biToo);
-		main.setName("BiToo");
-		main.start();
-		
-		//wait until thread complete
-		main.join();
-		
+		return props;
 	}
-
+	
 	private static Options createCommandLineOptions() {
 		Option optConfig = new Option("c", "config", true,
 				"configuration file location");
